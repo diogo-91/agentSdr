@@ -71,7 +71,7 @@ async def _process_in_background(phone: str, message: str, sender_name: str | No
         logger.exception(f"Erro crítico no background process: {e}")
 
 
-@router.post("/webhook")
+@router.post("/webhook/evolution")
 async def webhook_handler(request: Request, background_tasks: BackgroundTasks):
     """
     Endpoint principal do webhook.
