@@ -133,6 +133,19 @@ class AgentMemory:
 
     # ===== ORÇAMENTOS =====
 
+    def has_orcamento(self, lead_id: str) -> bool:
+        """Verifica se o lead já possui ao menos um orçamento gerado."""
+        try:
+            result = (
+                supabase.table("orcamentos")
+                .select("id", count="exact")
+                .eq("lead_id", lead_id)
+                .execute()
+            )
+            return (result.count or 0) > 0
+        except Exception:
+            return False  # Em caso de erro, não bloqueia
+
     def save_orcamento(
         self,
         lead_id: str,

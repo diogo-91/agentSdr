@@ -56,10 +56,12 @@ class SDRAgent:
             history = memory.get_history(lead_id=lead_id)
 
             # Context para as tools e prompt
+            has_orcamento = memory.has_orcamento(lead_id)
             context = {
                 "lead_id": lead_id,
                 "phone": phone,
                 "lead_name": lead.get("nome"),
+                "has_orcamento": has_orcamento,
             }
 
             # 4. Simula typing enquanto processa
@@ -102,6 +104,15 @@ class SDRAgent:
             *history,
         ]
 
+        # Se já existe orçamento para este lead, remove a tool gerar_orcamento
+        # para evitar que o Grok gere um novo PDF em resposta a agradecimentos
+        available_tools = [
+            t for t in TOOLS_DEFINITION
+            if not (t["function"]["name"] == "gerar_orcamento" and context.get("has_orcamento"))
+        ]
+        if context.get("has_orcamento"):
+            logger.info("Lead já possui orçamento — tool gerar_orcamento desabilitada para este turno.")
+
         iterations = 0
         tool_results_for_history = []
 
@@ -110,8 +121,8 @@ class SDRAgent:
 
             response = grok_client.chat(
                 messages=messages,
-                tools=TOOLS_DEFINITION,
-                tool_choice="auto",
+                tools=available_tools,
+                tool_choice="auto" if available_tools else "none",
             )
 
             choice = response.choices[0]
