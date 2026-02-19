@@ -71,7 +71,16 @@ class SheetsClient:
         try:
             client = self._get_client()
             spreadsheet = client.open_by_key(settings.google_sheets_id)
-            worksheet = spreadsheet.sheet1
+            try:
+                # Tenta variações do nome da aba (o usuário informou "TABELA DE PREÇO")
+                # Detectado espaço extra no nome durante teste: "TABELA DE PREÇO "
+                try:
+                    worksheet = spreadsheet.worksheet("TABELA DE PREÇO ")
+                except gspread.WorksheetNotFound:
+                    worksheet = spreadsheet.worksheet("TABELA DE PREÇO")
+            except gspread.WorksheetNotFound:
+                logger.warning("Aba 'TABELA DE PREÇO' não encontrada. Usando a primeira aba.")
+                worksheet = spreadsheet.sheet1
 
             records = worksheet.get_all_records()
             products = []
