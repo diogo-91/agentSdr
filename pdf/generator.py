@@ -25,6 +25,20 @@ COR_OBS_BORDA = (255, 224, 130)
 PAGE_W = 210  # A4 mm
 MARGIN = 15
 
+# Texto fixo dos termos
+DADOS_BANCARIOS = """RECEBIMENTOS SOMENTE EM CONTA JURÍDICA
+Favorecido: Constelha (CNPJ: 38.067.474/0001-23)
+Banco: Santander
+Chave Pix: 38.067.474/0001-23"""
+
+TERMOS_GERAIS = """1. O descarregamento é feito mediante pagamento de 100% do valor devido (salvo acordo prévio com diretoria).
+2. Descarga somente ao lado do caminhão.
+3. Taxa da maquininha de cartão é repassada ao cliente.
+4. Não aceitamos alteração/devolução após início da produção.
+5. Conferência (itens, medidas, qtd) é responsabilidade do cliente no ato da entrega.
+6. Entregas seguem logística de formação de carga. Atrasos logísticos/pintura não geram responsabilidade civil.
+7. O Cliente é responsável pelas medidas especificadas no pedido."""
+
 
 class OrcamentoPDF(FPDF):
     """PDF personalizado para orçamentos."""
@@ -256,34 +270,60 @@ class PDFGenerator:
             pdf.set_y(y_total + 26)
 
             # ──────────────────────────────────────────────────
-            # CONDIÇÕES COMERCIAIS
+            # CONDIÇÕES COMERCIAIS & DADOS BANCÁRIOS
             # ──────────────────────────────────────────────────
-            conds = [
-                ("Forma de Pagamento", "A combinar"),
-                ("Frete", "A consultar"),
-                ("Prazo de Entrega", "A consultar"),
-            ]
-            cond_w = eff_w / 3
             y_cond = pdf.get_y()
-            for i, (lbl, val) in enumerate(conds):
-                bx = MARGIN + i * cond_w
-                pdf.set_fill_color(*COR_CINZA_CLARO)
-                pdf.set_draw_color(*COR_BORDA)
-                pdf.set_line_width(0.3)
-                pdf.rect(bx, y_cond, cond_w - 1, 18, style="FD")
-                # barra vermelha lateral
-                pdf.set_fill_color(*COR_VERMELHO)
-                pdf.rect(bx, y_cond, 2, 18, style="F")
-                pdf.set_xy(bx + 5, y_cond + 3)
-                pdf.set_font("Helvetica", "B", 7)
-                pdf.set_text_color(*COR_CINZA)
-                pdf.cell(cond_w - 6, 4, lbl.upper())
-                pdf.set_xy(bx + 5, y_cond + 9)
-                pdf.set_font("Helvetica", "B", 10)
-                pdf.set_text_color(*COR_TEXTO)
-                pdf.cell(cond_w - 6, 5, val)
+            half_w = (eff_w / 2) - 2
 
-            pdf.set_y(y_cond + 24)
+            # Lado Esquerdo: Dados Bancários
+            pdf.set_fill_color(*COR_OBS_FUNDO)
+            pdf.set_draw_color(*COR_OBS_BORDA)
+            pdf.set_line_width(0.3)
+            # Altura estimada para 4 linhas + título
+            h_banco = 22
+            pdf.rect(MARGIN, y_cond, half_w, h_banco, style="FD")
+            
+            pdf.set_xy(MARGIN + 2, y_cond + 2)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(*COR_VERMELHO)
+            pdf.cell(half_w, 4, "DADOS PARA PAGAMENTO", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            
+            pdf.set_x(MARGIN + 2)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_text_color(*COR_TEXTO)
+            pdf.multi_cell(half_w - 4, 3.5, DADOS_BANCARIOS)
+
+            # Lado Direito: Prazos (simplificado)
+            x_right = MARGIN + half_w + 4
+            pdf.set_xy(x_right, y_cond)
+            pdf.set_fill_color(*COR_CINZA_CLARO)
+            pdf.set_draw_color(*COR_BORDA)
+            pdf.rect(x_right, y_cond, half_w, h_banco, style="FD")
+
+            pdf.set_xy(x_right + 2, y_cond + 2)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(*COR_CINZA)
+            pdf.cell(half_w, 4, "PRAZOS E ENTREGAS", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+            pdf.set_x(x_right + 2)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_text_color(*COR_TEXTO)
+            pdf.multi_cell(half_w - 4, 3.5, "Frete: A consultar\nPrazo: A consultar\nPagamento: A combinar")
+
+            pdf.set_y(y_cond + h_banco + 3)
+
+            # ──────────────────────────────────────────────────
+            # TERMOS E CONDIÇÕES
+            # ──────────────────────────────────────────────────
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(*COR_CINZA)
+            pdf.cell(eff_w, 4, "TERMOS E CONDIÇÕES DE FORNECIMENTO", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            
+            pdf.set_font("Helvetica", "", 6)  # Fonte bem pequena para caber
+            pdf.set_text_color(80, 80, 80)
+            pdf.multi_cell(eff_w, 3, TERMOS_GERAIS)
+            
+            pdf.ln(3)
 
             # ──────────────────────────────────────────────────
             # OBSERVAÇÕES
