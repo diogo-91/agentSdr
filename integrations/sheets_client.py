@@ -86,15 +86,19 @@ class SheetsClient:
             products = []
 
             for row in records:
+                # Normaliza chaves para busca (remove espaços extras das colunas)
+                # Ex: "PRODUTO " vira "PRODUTO"
+                row_normalized = {str(k).strip(): v for k, v in row.items()}
+
                 # Flexível: aceita variações nos nomes das colunas
                 produto = (
-                    row.get("PRODUTO") or row.get("Produto") or row.get("produto") or ""
+                    row_normalized.get("PRODUTO") or row_normalized.get("Produto") or row_normalized.get("produto") or ""
                 ).strip()
                 unidade = (
-                    row.get("UNIDADE") or row.get("Unidade") or row.get("unidade") or "UNIDADE"
+                    row_normalized.get("UNIDADE") or row_normalized.get("Unidade") or row_normalized.get("unidade") or "UNIDADE"
                 ).strip()
                 preco_raw = (
-                    row.get("PREÇO") or row.get("Preço") or row.get("preco") or row.get("PRECO") or "0"
+                    row_normalized.get("PREÇO") or row_normalized.get("Preço") or row_normalized.get("preco") or row_normalized.get("PRECO") or "0"
                 )
 
                 if not produto:

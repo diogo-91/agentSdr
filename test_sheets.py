@@ -5,7 +5,7 @@ import gspread
 
 # Configuração
 CREDENTIALS_FILE = 'credentials.json'
-SHEET_ID = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'
+SHEET_ID = '1LdXxN5A16kz2gFFMwu5dUzw8DrbpGTRbd_L4_lB4ni8'
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
@@ -37,12 +37,38 @@ def test_connection():
             for f in files:
                 print(f"   - [{f['id']}] {f['name']}")
 
-        # 4. Tentar abrir a planilha específica
+        # 4. Tentar abrir a planilha e ler dados
         print(f"\n3. Tentando abrir planilha ID: {SHEET_ID}...")
         try:
             sh = client.open_by_key(SHEET_ID)
             print(f"✅ Sucesso! Planilha aberta: '{sh.title}'")
-            print(f"   Abas: {[w.title for w in sh.worksheets()]}")
+            
+            # Tenta pegar a aba correta
+            try:
+                ws = sh.worksheet("TABELA DE PREÇO ")
+                print(f"✅ Aba 'TABELA DE PREÇO ' encontrada.")
+            except:
+                try:
+                    ws = sh.worksheet("TABELA DE PREÇO")
+                    print(f"✅ Aba 'TABELA DE PREÇO' encontrada.")
+                except:
+                    print("❌ Aba de preços não encontrada. Listando todas:")
+                    for w in sh.worksheets():
+                        print(f"   - '{w.title}'")
+                    return
+
+            # Ler registros
+            records = ws.get_all_records()
+            print(f"\n📊 Total de registros encontrados: {len(records)}")
+            
+            if records:
+                print("🔍 Exemplo do primeiro registro (CONFIRA AS CHAVES/COLUNAS):")
+                print(records[0])
+                print("\n🔍 Chaves detectadas:")
+                print(list(records[0].keys()))
+            else:
+                print("⚠️ Planilha vazia ou gspread não detectou cabeçalhos.")
+
         except gspread.exceptions.SpreadsheetNotFound:
             print(f"❌ Erro: Planilha não encontrada (404).")
             print("   Verifique se o ID está correto e se o compartilhamento foi feito para o e-mail correto.")
