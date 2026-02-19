@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from core.config import settings
 
 def get_system_prompt(customer_name: str | None = None) -> str:
     name = settings.agent_name
