@@ -165,6 +165,7 @@ class SDRAgent:
                 )
 
                 # Adiciona resultados ao contexto
+                tool_results_to_save = []
                 for i, (tool_call_id, tool_name, _) in enumerate(tool_tasks):
                     result = results[i]
                     if isinstance(result, Exception):
@@ -178,6 +179,28 @@ class SDRAgent:
                         "tool_call_id": tool_call_id,
                         "content": result_str,
                     })
+
+                    # Persiste tool results importantes (gerar_orcamento) no banco
+                    # para que o Grok saiba em conversas futuras que o orçamento foi enviado
+                    if tool_name == "gerar_orcamento":
+                        try:
+                            import json as _json
+                            result_data = _json.loads(result_str) if isinstance(result_str, str) else {}
+                            if result_data.get("sucesso"):
+                                lead_id = context.get("lead_id")
+                                if lead_id:
+                                    memory.save_message(
+                                        lead_id=lead_id,
+                                        role="assistant",
+                                        content=(
+                                            f"[ORÇAMENTO ENVIADO] Número: {result_data.get('numero')} | "
+                                            f"Total: R$ {result_data.get('valor_total', 0):,.2f} | "
+                                            f"Validade: {result_data.get('validade')} | "
+                                            "Status: PDF enviado ao cliente com sucesso."
+                                        ),
+                                    )
+                        except Exception as _e:
+                            logger.debug(f"Não foi possível persistir tool result: {_e}")
 
                     logger.debug(f"Tool {tool_name} resultado: {result_str[:200]}")
 
