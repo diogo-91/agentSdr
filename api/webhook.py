@@ -105,8 +105,7 @@ async def webhook_handler(request: Request, background_tasks: BackgroundTasks):
 
     # Processa em background para responder rapidamente ao Evolution
     background_tasks.add_task(
-        asyncio.ensure_future,
-        _process_in_background(phone, message, sender_name),
+        _process_in_background, phone, message, sender_name
     )
 
     return {"status": "received", "phone": phone[:8] + "***"}
