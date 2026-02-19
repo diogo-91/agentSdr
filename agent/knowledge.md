@@ -11,7 +11,18 @@ Este arquivo será lido pelo agente para responder dúvidas específicas.
 - **E-mail:** financeiro@constelha.com.br
 
 ## Produtos
-(Aguardando informações do usuário...)
+### Telhas Sanduíche e Simples
+**Cores Disponíveis (Pintura Eletrostática):**
+- Preto Fosco
+- Branco
+- Amarelo
+- Azul
+- Verde
+- Marrom
+- Cerâmica
+- Preto Semi-brilho
+- Preto Brilhante
+- Vermelho
 
 ## Diferenciais da Empresa
 (Aguardando informações do usuário...)

@@ -16,9 +16,10 @@ from agent.tools import TOOLS_DEFINITION, execute_tool
 
 
 # Mensagem de fallback caso tudo falhe
+# Mensagem de fallback caso tudo falhe (neutra e profissional)
 FALLBACK_MESSAGE = (
-    "Oi! Tive um probleminha técnico aqui, mas já estou resolvendo 😅 "
-    "Pode me mandar sua mensagem de novo em instantes?"
+    "Desculpe, não consegui processar sua mensagem agora. "
+    "Poderia tentar novamente em alguns instantes?"
 )
 
 # Máximo de iterações de tool calling por mensagem (evita loops)
