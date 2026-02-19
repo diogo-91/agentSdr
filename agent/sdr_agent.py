@@ -55,8 +55,12 @@ class SDRAgent:
             # 3. Carrega histórico de conversação
             history = memory.get_history(lead_id=lead_id)
 
-            # Context para as tools
-            context = {"lead_id": lead_id, "phone": phone}
+            # Context para as tools e prompt
+            context = {
+                "lead_id": lead_id,
+                "phone": phone,
+                "lead_name": lead.get("nome"),
+            }
 
             # 4. Simula typing enquanto processa
             asyncio.create_task(evolution_client.send_typing(phone, 3000))
@@ -92,8 +96,9 @@ class SDRAgent:
         Loop de raciocínio do agente com suporte a tool calling em cadeia.
         Limita a MAX_TOOL_ITERATIONS chamadas de tool por rodada.
         """
+        system_prompt = get_system_prompt(customer_name=context.get("lead_name"))
         messages = [
-            {"role": "system", "content": get_system_prompt()},
+            {"role": "system", "content": system_prompt},
             *history,
         ]
 

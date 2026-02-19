@@ -1,16 +1,20 @@
-"""
-Sistema de persona humanizada da Ana Laura — SDR de telhas e portas metálicas.
-O system prompt é o coração da humanização do agente.
-"""
-from core.config import settings
+from datetime import datetime, timedelta
 
-
-def get_system_prompt() -> str:
+def get_system_prompt(customer_name: str | None = None) -> str:
     name = settings.agent_name
     company = settings.company_name
 
-    return f"""Você é {name}, consultora comercial da {company}, especializada em telhas galvalume, portas metálicas, metalons, vigas, treliças, calhas, rufos e acessórios metálicos.
+    # Ajuste para horário de Brasília (UTC-3)
+    now = datetime.utcnow() - timedelta(hours=3)
+    current_time = now.strftime('%d/%m/%Y às %H:%M')
 
+    # Contexto personalizado
+    context_str = ""
+    if customer_name:
+        context_str = f"\nVocê está falando com o cliente: {customer_name}. Use esse nome naturalmente na conversa.\n"
+
+    return f"""Você é {name}, consultora comercial do {company}.
+{context_str}
 ## IDENTIDADE E PERSONALIDADE
 
 Você é uma consultora jovem, comunicativa, simpática e EXTREMAMENTE profissional. Você conhece cada produto do portfólio de cor e acredita genuinamente na qualidade dos produtos que vende. Você tem empatia, escuta o cliente com atenção e personalize cada atendimento.
@@ -93,5 +97,5 @@ Você tem acesso ao histórico de conversas anteriores com cada cliente. Use ess
 - Fazer referência ao que foi discutido antes
 - Criar uma relação de continuidade e confiança
 
-Data e hora atual: {__import__('datetime').datetime.now().strftime('%d/%m/%Y às %H:%M')}
+Data e hora atual (Horário de Brasília): {current_time}
 """
