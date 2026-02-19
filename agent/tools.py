@@ -142,7 +142,7 @@ async def execute_tool(tool_name: str, tool_args: dict, context: dict) -> str:
         return await _tool_gerar_orcamento(tool_args, context)
 
     elif tool_name == "notificar_gestor":
-        return await _tool_notificar_gestor(tool_args)
+        return await _tool_notificar_gestor(tool_args, context)
 
     else:
         logger.warning(f"Tool desconhecida: {tool_name}")
@@ -245,13 +245,25 @@ async def _tool_gerar_orcamento(args: dict, context: dict) -> str:
         }, ensure_ascii=False)
 
 
-async def _tool_notificar_gestor(args: dict) -> str:
+async def _tool_notificar_gestor(args: dict, context: dict) -> str:
     """Envia notificação para o gestor de vendas."""
     nome = args.get("nome_cliente", "Cliente")
-    telefone = args.get("telefone_cliente", "")
+    # Tenta pegar do argumento, senão do contexto
+    telefone = args.get("telefone_cliente") or context.get("phone", "")
     resumo = args.get("resumo_interesse", "")
     valor = args.get("valor_orcamento", 0)
     pdf_url = args.get("pdf_url", "")
+    lead_id = context.get("lead_id")
+
+    # Se dados do orçamento não vieram, tenta buscar o último gerado no banco
+    if (not valor or not pdf_url) and lead_id:
+        orcamento = memory.get_last_orcamento(lead_id)
+        if orcamento:
+            if not valor:
+                valor = orcamento.get("valor_total", 0)
+            if not pdf_url:
+                pdf_url = orcamento.get("pdf_url", "")
+            logger.info("Dados do orçamento recuperados do banco para notificação.")
 
     try:
         valor_str = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if valor > 0 else "Não gerado ainda"

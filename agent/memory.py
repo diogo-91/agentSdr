@@ -146,6 +146,22 @@ class AgentMemory:
         except Exception:
             return False  # Em caso de erro, não bloqueia
 
+    def get_last_orcamento(self, lead_id: str) -> dict | None:
+        """Retorna o último orçamento gerado para o lead."""
+        try:
+            result = (
+                supabase.table("orcamentos")
+                .select("*")
+                .eq("lead_id", lead_id)
+                .order("criado_em", desc=True)
+                .limit(1)
+                .execute()
+            )
+            return result.data[0] if result.data else None
+        except Exception as e:
+            logger.error(f"Erro ao buscar último orçamento: {e}")
+            return None
+
     def save_orcamento(
         self,
         lead_id: str,
