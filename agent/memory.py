@@ -74,12 +74,17 @@ class AgentMemory:
     # ===== MENSAGENS =====
 
     def save_message(self, lead_id: str, role: str, content: str) -> dict:
-        """Salva uma mensagem no histórico."""
+        """Salva uma mensagem no histórico com direction e status."""
         try:
+            direction = "outbound" if role == "assistant" else "inbound"
+            status = "sent" if role == "assistant" else "received"
+
             result = supabase.table("messages").insert({
                 "lead_id": lead_id,
                 "role": role,
                 "content": content,
+                "direction": direction,
+                "status": status,
             }).execute()
             return result.data[0] if result.data else {}
         except Exception as e:
