@@ -230,6 +230,23 @@ async def _tool_gerar_orcamento(args: dict, context: dict) -> str:
                 filename=f"Orcamento_{nome_cliente.replace(' ', '_')}.pdf",
             )
 
+        # Notifica o gestor automaticamente após o orçamento ser gerado
+        if settings.manager_phone:
+            try:
+                resumo = f"Orçamento {numero} gerado.\nItens: {', '.join(i.get('descricao', '') for i in itens)}"
+                await _tool_notificar_gestor(
+                    args={
+                        "nome_cliente": nome_cliente,
+                        "telefone_cliente": phone or "",
+                        "resumo_interesse": resumo,
+                        "valor_orcamento": valor_total,
+                        "pdf_url": pdf_url,
+                    },
+                    context=context,
+                )
+            except Exception as e:
+                logger.warning(f"Notificação ao gestor falhou (não crítico): {e}")
+
         return json.dumps({
             "sucesso": True,
             "numero": numero,
