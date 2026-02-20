@@ -25,11 +25,11 @@ FALLBACK_MESSAGE = (
 # Máximo de iterações de tool calling por mensagem (evita loops)
 MAX_TOOL_ITERATIONS = 5
 
-# Padrões de mensagens simples que não precisam de tool calls
+# Padrões de mensagens simples que NÃO precisam de tool calls
+# ATENÇÃO: não incluir confirmações ("sim", "ok", "certo") — podem acionar gerar_orcamento
 _SIMPLE_MESSAGE_PATTERNS = [
     "oi", "olá", "ola", "bom dia", "boa tarde", "boa noite",
-    "obrigado", "obrigada", "valeu", "ok", "okay", "tá", "ta",
-    "sim", "não", "nao", "certo", "entendi", "até mais", "tchau",
+    "obrigado", "obrigada", "valeu", "até mais", "tchau",
     "até logo", "flw", "👍", "❤️", "😊", "🙏",
 ]
 
