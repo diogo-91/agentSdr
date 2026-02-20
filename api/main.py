@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.logger import logger
 from api.webhook import router as webhook_router
+from api.conversations import router as conversations_router
 
 # Cria pasta de logs se não existir
 os.makedirs("logs", exist_ok=True)
@@ -61,6 +62,7 @@ app.add_middleware(
 )
 
 app.include_router(webhook_router, tags=["Webhook"])
+app.include_router(conversations_router)
 
 
 if __name__ == "__main__":
