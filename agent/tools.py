@@ -25,8 +25,9 @@ TOOLS_DEFINITION = [
             "name": "consultar_precos",
             "description": (
                 "Consulta a tabela de preços de produtos na planilha. "
-                "Use quando o cliente perguntar sobre preços, produtos disponíveis "
-                "ou quando precisar montar um orçamento. "
+                "Use SOMENTE quando o cliente perguntar explicitamente sobre preço, valor ou produto específico, "
+                "ou quando for montar um orçamento a pedido do cliente. "
+                "NÃO use para saudações, mensagens genéricas ou quando o cliente não demonstrou interesse em produto. "
                 "Retorna lista com produto, unidade e preço unitário."
             ),
             "parameters": {

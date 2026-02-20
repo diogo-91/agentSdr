@@ -25,6 +25,27 @@ FALLBACK_MESSAGE = (
 # Máximo de iterações de tool calling por mensagem (evita loops)
 MAX_TOOL_ITERATIONS = 5
 
+# Padrões de mensagens simples que não precisam de tool calls
+_SIMPLE_MESSAGE_PATTERNS = [
+    "oi", "olá", "ola", "bom dia", "boa tarde", "boa noite",
+    "obrigado", "obrigada", "valeu", "ok", "okay", "tá", "ta",
+    "sim", "não", "nao", "certo", "entendi", "até mais", "tchau",
+    "até logo", "flw", "👍", "❤️", "😊", "🙏",
+]
+
+def _is_simple_message(message: str) -> bool:
+    """Retorna True se a mensagem for uma saudação ou resposta simples."""
+    cleaned = message.strip().lower()
+    # Mensagem muito curta (até 3 palavras) ou exatamente um dos padrões
+    if any(cleaned == pat or cleaned.startswith(pat + "!") or cleaned.startswith(pat + ",") for pat in _SIMPLE_MESSAGE_PATTERNS):
+        return True
+    # Mensagem com poucas palavras sem termos de produto
+    words = cleaned.split()
+    product_hints = ["preço", "preco", "valor", "telha", "calha", "metalon", "orçamento", "orcamento", "quanto", "comprar", "produto"]
+    if len(words) <= 3 and not any(hint in cleaned for hint in product_hints):
+        return True
+    return False
+
 
 class SDRAgent:
     """Agente SDR humanizado com memória persistente e function calling."""
@@ -72,6 +93,7 @@ class SDRAgent:
             response_text = await self._agent_loop(
                 history=history,
                 context=context,
+                last_message=message,
             )
 
             # 6. Salva resposta do assistente
@@ -94,7 +116,7 @@ class SDRAgent:
             logger.exception(f"Erro inesperado ao processar mensagem: {e}")
             await self._send_fallback(phone)
 
-    async def _agent_loop(self, history: list[dict], context: dict) -> str | None:
+    async def _agent_loop(self, history: list[dict], context: dict, last_message: str = "") -> str | None:
         """
         Loop de raciocínio do agente com suporte a tool calling em cadeia.
         Limita a MAX_TOOL_ITERATIONS chamadas de tool por rodada.
@@ -114,16 +136,26 @@ class SDRAgent:
         if context.get("has_orcamento"):
             logger.info("Lead já possui orçamento — tool gerar_orcamento desabilitada para este turno.")
 
+        # Se a mensagem for uma saudação/resposta simples, bloqueia tool calls
+        # para resposta imediata sem consultar a planilha
+        is_simple = _is_simple_message(last_message)
+        if is_simple:
+            logger.info(f"Mensagem simples detectada — tool_choice=none para resposta direta.")
+
         iterations = 0
         tool_results_for_history = []
 
         while iterations < MAX_TOOL_ITERATIONS:
             iterations += 1
 
+            # Bloqueia tools para mensagens simples (saudações, agradecimentos)
+            effective_tool_choice = "none" if is_simple else ("auto" if available_tools else "none")
+            effective_tools = available_tools if not is_simple else []
+
             response = grok_client.chat(
                 messages=messages,
-                tools=available_tools,
-                tool_choice="auto" if available_tools else "none",
+                tools=effective_tools,
+                tool_choice=effective_tool_choice,
             )
 
             choice = response.choices[0]
