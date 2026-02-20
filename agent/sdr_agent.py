@@ -23,7 +23,7 @@ FALLBACK_MESSAGE = (
 )
 
 # Máximo de iterações de tool calling por mensagem (evita loops)
-MAX_TOOL_ITERATIONS = 5
+MAX_TOOL_ITERATIONS = 8
 
 # Padrões de mensagens simples que NÃO precisam de tool calls
 # ATENÇÃO: não incluir confirmações ("sim", "ok", "certo") — podem acionar gerar_orcamento
@@ -34,16 +34,27 @@ _SIMPLE_MESSAGE_PATTERNS = [
 ]
 
 def _is_simple_message(message: str) -> bool:
-    """Retorna True se a mensagem for uma saudação ou resposta simples."""
+    """Retorna True APENAS para saudações puras sem intenção de ação."""
     cleaned = message.strip().lower()
-    # Mensagem muito curta (até 3 palavras) ou exatamente um dos padrões
+
+    # Apenas saudações exatas bloqueiam tools
     if any(cleaned == pat or cleaned.startswith(pat + "!") or cleaned.startswith(pat + ",") for pat in _SIMPLE_MESSAGE_PATTERNS):
         return True
-    # Mensagem com poucas palavras sem termos de produto
+
+    # Termos que indicam intenção de ação — nunca bloquear tools
+    action_hints = [
+        "preço", "preco", "valor", "telha", "calha", "metalon",
+        "orçamento", "orcamento", "quanto", "comprar", "produto",
+        "gerar", "montar", "fazer", "enviar", "manda", "quero",
+        "pode", "sim", "confirma", "confirmar", "fecha", "fechar",
+        "pedido", "compra", "pagar", "entrega",
+    ]
+
+    # Mensagem curta sem nenhuma intenção de ação → simples
     words = cleaned.split()
-    product_hints = ["preço", "preco", "valor", "telha", "calha", "metalon", "orçamento", "orcamento", "quanto", "comprar", "produto"]
-    if len(words) <= 3 and not any(hint in cleaned for hint in product_hints):
+    if len(words) <= 3 and not any(hint in cleaned for hint in action_hints):
         return True
+
     return False
 
 
