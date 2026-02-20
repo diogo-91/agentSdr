@@ -8,6 +8,7 @@ def get_system_prompt(customer_name: str | None = None) -> str:
     # Ajuste para horário de Brasília (UTC-3)
     now = datetime.utcnow() - timedelta(hours=3)
     current_time = now.strftime('%d/%m/%Y às %H:%M')
+    today = now.strftime('%d/%m/%Y')
 
     # Lê Base de Conhecimento
     try:
