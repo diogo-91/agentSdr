@@ -4,6 +4,9 @@ Gerencia o ciclo completo: recebe mensagem → carrega memória → chama Grok �
 """
 import json
 import asyncio
+import re
+import time
+from datetime import datetime
 
 from core.config import settings
 from core.logger import logger
@@ -235,6 +238,68 @@ class SDRAgent:
             # Resposta de texto final
             if finish_reason == "stop" or not msg.tool_calls:
                 if msg.content:
+                    # INTERCEPÇÃO: Verifica se o LLM enviou um JSON de tool no texto
+                    # Padrão: {"tool_name": "...", "parameters": {...}}
+                    try:
+                        potential_json = msg.content.strip()
+                        if "tool_name" in potential_json:
+                            # Tenta extrair o JSON puro (caso haja texto em volta ou múltiplos blocos)
+                            import re
+                            # Busca o primeiro bloco que parece um JSON de ferramenta
+                            json_pattern = r'(\{\s*"tool_name":.*?\})'
+                            match = re.search(json_pattern, potential_json, re.DOTALL)
+                        content = msg.content.strip()
+                        if "tool_name" in content:
+                            logger.info("Detectada possível tool call em formato texto. Tentando extrair...")
+                            # Busca blocos que parecem JSON de ferramenta
+                            # Padrão flexível: { "tool_name": ... } ou {"tool_name": ...}
+                            json_match = re.search(r'(\{.*"tool_name".*?\})', content, re.DOTALL)
+                            
+                            if json_match:
+                                json_str = json_match.group(1)
+                                try:
+                                    tool_data = json.loads(json_str)
+                                except json.JSONDecodeError:
+                                    # Tenta fechar chaves se o LLM cortou
+                                    if json_str.count('{') > json_str.count('}'):
+                                        json_str += '}' * (json_str.count('{') - json_str.count('}'))
+                                    tool_data = json.loads(json_str)
+
+                                tool_name = tool_data.get("tool_name")
+                                tool_args = tool_data.get("parameters") or tool_data.get("args") or {}
+                                
+                                if tool_name:
+                                    logger.info(f"Intercepetado tool call em texto: {tool_name}")
+                                    fake_id = f"call_text_{int(time.time())}"
+                                    
+                                    messages.append({
+                                        "role": "assistant",
+                                        "content": msg.content,
+                                        "tool_calls": [{
+                                            "id": fake_id,
+                                            "type": "function",
+                                            "function": {
+                                                "name": tool_name,
+                                                "arguments": json.dumps(tool_args),
+                                            },
+                                        }],
+                                    })
+                                    
+                                    result_str = await execute_tool(tool_name, tool_args, context)
+                                    
+                                    messages.append({
+                                        "role": "tool",
+                                        "tool_call_id": fake_id,
+                                        "content": result_str,
+                                    })
+                                    
+                                    if tool_name == "gerar_orcamento":
+                                        self._persist_orcamento_result(result_str, context)
+                                        
+                                    continue # Sucesso! Próxima iteração
+                    except Exception as e:
+                        logger.warning(f"Falha na intercepção de texto: {e}")
+
                     return msg.content
                 # Caso raro: sem conteúdo e sem tool calls
                 logger.warning("Grok retornou resposta vazia sem tool calls.")
@@ -297,24 +362,7 @@ class SDRAgent:
                     # Persiste tool results importantes (gerar_orcamento) no banco
                     # para que o Grok saiba em conversas futuras que o orçamento foi enviado
                     if tool_name == "gerar_orcamento":
-                        try:
-                            import json as _json
-                            result_data = _json.loads(result_str) if isinstance(result_str, str) else {}
-                            if result_data.get("sucesso"):
-                                lead_id = context.get("lead_id")
-                                if lead_id:
-                                    memory.save_message(
-                                        lead_id=lead_id,
-                                        role="assistant",
-                                        content=(
-                                            f"[ORÇAMENTO ENVIADO] Número: {result_data.get('numero')} | "
-                                            f"Total: R$ {result_data.get('valor_total', 0):,.2f} | "
-                                            f"Validade: {result_data.get('validade')} | "
-                                            "Status: PDF enviado ao cliente com sucesso."
-                                        ),
-                                    )
-                        except Exception as _e:
-                            logger.debug(f"Não foi possível persistir tool result: {_e}")
+                        self._persist_orcamento_result(result_str, context)
 
                     logger.debug(f"Tool {tool_name} resultado: {result_str[:200]}")
 
@@ -323,6 +371,26 @@ class SDRAgent:
         # Se chegou aqui, excedeu o limite de iterações
         logger.warning(f"Excedido MAX_TOOL_ITERATIONS ({MAX_TOOL_ITERATIONS})")
         return "Oi! Estou finalizando o processamento, só um segundo! 😊"
+
+    def _persist_orcamento_result(self, result_str: str, context: dict) -> None:
+        """Persiste o resultado da geração de orçamento no banco de dados."""
+        try:
+            result_data = json.loads(result_str) if isinstance(result_str, str) else {}
+            if result_data.get("sucesso"):
+                lead_id = context.get("lead_id")
+                if lead_id:
+                    memory.save_message(
+                        lead_id=lead_id,
+                        role="assistant",
+                        content=(
+                            f"[ORÇAMENTO ENVIADO] Número: {result_data.get('numero')} | "
+                            f"Total: R$ {result_data.get('valor_total', 0):,.2f} | "
+                            f"Validade: {result_data.get('validade')} | "
+                            "Status: PDF enviado ao cliente com sucesso."
+                        ),
+                    )
+        except Exception as e:
+            logger.debug(f"Não foi possível persistir tool result: {e}")
 
     async def _send_fallback(self, phone: str):
         """Envia mensagem de fallback em caso de erro crítico."""

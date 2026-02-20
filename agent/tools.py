@@ -184,7 +184,35 @@ async def _tool_gerar_orcamento(args: dict, context: dict) -> str:
     phone = context.get("phone")
 
     if not itens:
-        return json.dumps({"erro": "Nenhum item fornecido para o orçamento."})
+        # FALLBACK: Se o LLM enviou parâmetros simplificados (produto, metragem)
+        produto_nome = args.get("produto") or args.get("tipo_obra") # O LLM às vezes confunde
+        metragem_raw = args.get("metragem") or args.get("quantidade")
+        
+        if produto_nome and metragem_raw:
+            logger.info(f"Parametros simplificados detectados: produto={produto_nome}, metragem={metragem_raw}")
+            # Tenta buscar o produto na planilha
+            resultados = sheets_client.search_products(produto_nome, limit=1)
+            if resultados:
+                p = resultados[0]
+                # Limpa a metragem (remove 'm', 'm2', etc)
+                import re
+                metragem_clean = re.sub(r"[^0-9,.]", "", str(metragem_raw)).replace(",", ".")
+                try:
+                    quantidade = float(metragem_clean)
+                except ValueError:
+                    quantidade = 1.0
+                
+                itens = [{
+                    "produto": p["produto"],
+                    "quantidade": quantidade,
+                    "unidade": p["unidade"],
+                    "preco_unitario": p["preco"]
+                }]
+                logger.info(f"Item gerado automaticamente: {itens[0]}")
+            else:
+                return json.dumps({"erro": f"Não encontrei o produto '{produto_nome}' na planilha para gerar o orçamento."})
+        else:
+            return json.dumps({"erro": "Nenhum item fornecido para o orçamento e parâmetros simplificados incompletos."})
 
     try:
         # Calcula totais
