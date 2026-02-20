@@ -58,6 +58,48 @@ def _is_simple_message(message: str) -> bool:
     return False
 
 
+# Palavras que o agente usa ao OFERECER gerar o orçamento
+_ORCAMENTO_OFFER_HINTS = [
+    "quer que eu monte um orçamento",
+    "posso montar um orçamento",
+    "vou gerar o orçamento",
+    "monte um orçamento",
+    "orçamento inicial",
+    "orçamento baseado",
+    "posso seguir com o pedido",
+]
+
+# Palavras de confirmação do cliente para a oferta de orçamento
+_ORCAMENTO_CONFIRM_HINTS = [
+    "sim", "pode", "quero", "gera", "manda", "faz", "vai",
+    "montar", "gerar", "fazer", "enviar", "orca", "orçamento",
+    "pode sim", "claro", "vai lá", "vamos",
+]
+
+
+def _is_orcamento_confirmation(last_message: str, history: list[dict]) -> bool:
+    """
+    Retorna True se o cliente confirmou gerar o orçamento:
+    - Última mensagem do assistente continha oferta de orçamento
+    - Mensagem atual do cliente é uma confirmação
+    """
+    cleaned = last_message.strip().lower()
+
+    # Checa se a mensagem atual é uma confirmação
+    is_confirm = any(hint in cleaned for hint in _ORCAMENTO_CONFIRM_HINTS)
+    if not is_confirm:
+        return False
+
+    # Checa se o último assistente estava oferecendo gerar orçamento
+    last_assistant = ""
+    for msg in reversed(history):
+        if msg.get("role") == "assistant":
+            last_assistant = msg.get("content", "").lower()
+            break
+
+    return any(hint in last_assistant for hint in _ORCAMENTO_OFFER_HINTS)
+
+
 class SDRAgent:
     """Agente SDR humanizado com memória persistente e function calling."""
 
@@ -153,15 +195,32 @@ class SDRAgent:
         if is_simple:
             logger.info(f"Mensagem simples detectada — tool_choice=none para resposta direta.")
 
+        # Detecta confirmação de orçamento para forçar a tool no código
+        force_gerar_orcamento = (
+            not context.get("has_orcamento")
+            and _is_orcamento_confirmation(last_message, history)
+        )
+        if force_gerar_orcamento:
+            logger.info("Confirmação de orçamento detectada — forçando tool gerar_orcamento.")
+
         iterations = 0
         tool_results_for_history = []
 
         while iterations < MAX_TOOL_ITERATIONS:
             iterations += 1
 
-            # Bloqueia tools para mensagens simples (saudações, agradecimentos)
-            effective_tool_choice = "none" if is_simple else ("auto" if available_tools else "none")
-            effective_tools = available_tools if not is_simple else []
+            # Determina tool_choice para esta iteração
+            if force_gerar_orcamento and iterations == 1:
+                # Força chamada direta da tool sem depender do LLM
+                effective_tool_choice = {"type": "function", "function": {"name": "gerar_orcamento"}}
+                effective_tools = [t for t in available_tools if t["function"]["name"] == "gerar_orcamento"]
+                force_gerar_orcamento = False  # Só força na primeira iteração
+            elif is_simple:
+                effective_tool_choice = "none"
+                effective_tools = []
+            else:
+                effective_tool_choice = "auto" if available_tools else "none"
+                effective_tools = available_tools
 
             response = grok_client.chat(
                 messages=messages,
